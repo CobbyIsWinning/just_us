@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -9,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import authenticate_user, create_user
 from app.database import get_db
+from app.message_service import create_general_message, get_general_messages
 from app.models import User
 
 router = APIRouter()
@@ -17,62 +17,6 @@ BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(
     directory=str(BASE_DIR / "templates")
 )
-
-
-@dataclass
-class DemoMessage:
-    sender: str
-    content: str
-    message_type: str
-    recipient: str | None = None
-
-
-demo_messages: list[DemoMessage] = []
-
-
-def parse_message_content(
-    content: str,
-) -> tuple[str, str | None, str]:
-    cleaned_content = content.strip()
-
-    if not cleaned_content:
-        raise ValueError("Message cannot be empty.")
-
-    if not cleaned_content.startswith("@"):
-        return "general", None, cleaned_content
-
-    parts = cleaned_content.split(maxsplit=1)
-
-    if len(parts) < 2:
-        raise ValueError(
-            "Private messages must include a username and message."
-        )
-
-    username_part = parts[0]
-    message_body = parts[1].strip()
-    recipient_username = username_part[1:].strip().lower()
-
-    if not recipient_username:
-        raise ValueError("Private message recipient is missing.")
-
-    if not message_body:
-        raise ValueError("Private message content is missing.")
-
-    return "private", recipient_username, message_body
-
-
-def get_visible_demo_messages(username: str) -> list[DemoMessage]:
-    visible_messages = []
-
-    for message in demo_messages:
-        if message.message_type == "general":
-            visible_messages.append(message)
-            continue
-
-        if message.sender == username or message.recipient == username:
-            visible_messages.append(message)
-
-    return visible_messages
 
 
 def get_current_user(
@@ -289,6 +233,8 @@ def logout_user(request: Request):
 @router.get("/room", response_class=HTMLResponse)
 def room_page(
     request: Request,
+    error: str | None = None,
+    success: str | None = None,
     db: Session = Depends(get_db),
 ):
     current_user = get_current_user(
@@ -309,15 +255,17 @@ def room_page(
         .all()
     )
 
+    messages = get_general_messages(db)
+
     return templates.TemplateResponse(
         request=request,
         name="room.html",
         context={
             "username": current_user.username,
             "users": users,
-            "messages": get_visible_demo_messages(current_user.username),
-            "error": None,
-            "success": None,
+            "messages": messages,
+            "error": error,
+            "success": success,
         },
     )
 
@@ -339,93 +287,38 @@ def send_message(
             status_code=302,
         )
 
-    users = (
-        db.query(User)
-        .filter(User.is_active.is_(True))
-        .order_by(User.username.asc())
-        .all()
-    )
+    cleaned_content = content.strip()
 
-    visible_messages = get_visible_demo_messages(current_user.username)
+    if not cleaned_content:
+        return RedirectResponse(
+            url="/room?error=Message+cannot+be+empty",
+            status_code=303,
+        )
+
+    if cleaned_content.startswith("@"):
+        return RedirectResponse(
+            url="/room?error=Private+messaging+will+be+added+in+Milestone+6",
+            status_code=303,
+        )
 
     try:
-        message_type, recipient_username, message_body = parse_message_content(
-            content
+        create_general_message(
+            db=db,
+            sender=current_user,
+            plaintext=cleaned_content,
         )
-    except ValueError as error:
-        return templates.TemplateResponse(
-            request=request,
-            name="room.html",
-            context={
-                "username": current_user.username,
-                "users": users,
-                "messages": visible_messages,
-                "error": str(error),
-                "success": None,
-            },
-            status_code=400,
-        )
-
-    if message_type == "private":
-        recipient = (
-            db.query(User)
-            .filter(
-                User.username == recipient_username,
-                User.is_active.is_(True),
-            )
-            .first()
-        )
-
-        if not recipient:
-            return templates.TemplateResponse(
-                request=request,
-                name="room.html",
-                context={
-                    "username": current_user.username,
-                    "users": users,
-                    "messages": visible_messages,
-                    "error": f"User @{recipient_username} does not exist.",
-                    "success": None,
-                },
-                status_code=404,
-            )
-
-        if recipient.id == current_user.id:
-            return templates.TemplateResponse(
-                request=request,
-                name="room.html",
-                context={
-                    "username": current_user.username,
-                    "users": users,
-                    "messages": visible_messages,
-                    "error": "You cannot send a private message to yourself.",
-                    "success": None,
-                },
-                status_code=400,
-            )
-
-    demo_messages.append(
-        DemoMessage(
-            sender=current_user.username,
-            content=message_body,
-            message_type=message_type,
-            recipient=recipient_username,
-        )
-    )
-
-    if message_type == "general":
-        logging.info(
-            "General demo message sent by %s",
+    except Exception:
+        logging.exception(
+            "General message creation failed for user: %s",
             current_user.username,
         )
-    else:
-        logging.info(
-            "Private demo message sent by %s to %s",
-            current_user.username,
-            recipient_username,
+
+        return RedirectResponse(
+            url="/room?error=Message+could+not+be+sent",
+            status_code=303,
         )
 
     return RedirectResponse(
-        url="/room",
+        url="/room?success=Message+encrypted+and+sent",
         status_code=303,
     )
