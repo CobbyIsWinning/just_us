@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -8,7 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.auth import authenticate_user, create_user
 from app.database import get_db
-from app.message_service import create_general_message, get_general_messages
+from app.message_service import (
+    create_general_message,
+    create_private_message,
+    get_visible_messages,
+)
 from app.models import User
 
 router = APIRouter()
@@ -17,6 +22,52 @@ BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(
     directory=str(BASE_DIR / "templates")
 )
+
+
+def parse_message_content(
+    content: str,
+) -> tuple[str, str | None, str]:
+    cleaned_content = content.strip()
+
+    if not cleaned_content:
+        raise ValueError("Message cannot be empty.")
+
+    if not cleaned_content.startswith("@"):
+        return "general", None, cleaned_content
+
+    parts = cleaned_content.split(maxsplit=1)
+
+    if len(parts) != 2:
+        raise ValueError(
+            "Private messages must use: @username message"
+        )
+
+    username_part, message_body = parts
+
+    recipient_username = (
+        username_part
+        .removeprefix("@")
+        .strip()
+        .lower()
+    )
+
+    message_body = message_body.strip()
+
+    if not recipient_username:
+        raise ValueError(
+            "Private message recipient is missing."
+        )
+
+    if not message_body:
+        raise ValueError(
+            "Private message content is missing."
+        )
+
+    return (
+        "private",
+        recipient_username,
+        message_body,
+    )
 
 
 def get_current_user(
@@ -255,7 +306,10 @@ def room_page(
         .all()
     )
 
-    messages = get_general_messages(db)
+    messages = get_visible_messages(
+        db=db,
+        current_user=current_user,
+    )
 
     return templates.TemplateResponse(
         request=request,
@@ -287,38 +341,78 @@ def send_message(
             status_code=302,
         )
 
-    cleaned_content = content.strip()
-
-    if not cleaned_content:
+    try:
+        (
+            message_type,
+            recipient_username,
+            message_body,
+        ) = parse_message_content(content)
+    except ValueError as error:
         return RedirectResponse(
-            url="/room?error=Message+cannot+be+empty",
-            status_code=303,
-        )
-
-    if cleaned_content.startswith("@"):
-        return RedirectResponse(
-            url="/room?error=Private+messaging+will+be+added+in+Milestone+6",
+            url=f"/room?error={quote(str(error))}",
             status_code=303,
         )
 
     try:
-        create_general_message(
-            db=db,
-            sender=current_user,
-            plaintext=cleaned_content,
+        if message_type == "general":
+            create_general_message(
+                db=db,
+                sender=current_user,
+                plaintext=message_body,
+            )
+
+            success_message = "General message encrypted and sent."
+        else:
+            recipient = (
+                db.query(User)
+                .filter(
+                    User.username == recipient_username,
+                    User.is_active.is_(True),
+                )
+                .first()
+            )
+
+            if not recipient:
+                return RedirectResponse(
+                    url=(
+                        "/room?error="
+                        + quote(
+                            f"User @{recipient_username} does not exist."
+                        )
+                    ),
+                    status_code=303,
+                )
+
+            create_private_message(
+                db=db,
+                sender=current_user,
+                recipient=recipient,
+                plaintext=message_body,
+            )
+
+            success_message = (
+                f"Private message encrypted and sent "
+                f"to @{recipient.username}."
+            )
+
+    except ValueError as error:
+        return RedirectResponse(
+            url=f"/room?error={quote(str(error))}",
+            status_code=303,
         )
+
     except Exception:
         logging.exception(
-            "General message creation failed for user: %s",
+            "Message creation failed. Sender=%s",
             current_user.username,
         )
 
         return RedirectResponse(
-            url="/room?error=Message+could+not+be+sent",
+            url="/room?error=Message%20could%20not%20be%20sent.",
             status_code=303,
         )
 
     return RedirectResponse(
-        url="/room?success=Message+encrypted+and+sent",
+        url="/room?success=" + quote(success_message),
         status_code=303,
     )

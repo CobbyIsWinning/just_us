@@ -62,37 +62,64 @@
         <section class="space-y-6 lg:col-span-2">
             <div class="rounded-2xl bg-white p-6 shadow">
                 <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <h2 class="text-xl font-bold">Room Messages</h2>
+                    <h2 class="text-xl font-bold">Messages</h2>
 
                     <span class="w-fit rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                        AES-256-GCM protected
+                        Encrypted storage
                     </span>
                 </div>
 
                 {% if messages %}
                     <div class="space-y-4">
                         {% for message in messages %}
-                            <article class="rounded-xl border border-slate-200 p-4">
+                            <article
+                                class="
+                                    rounded-xl border p-4
+                                    {% if message.message_type == 'private' %}
+                                        border-purple-200 bg-purple-50
+                                    {% else %}
+                                        border-slate-200 bg-white
+                                    {% endif %}
+                                "
+                            >
                                 <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
                                         <span class="font-semibold">
                                             {{ message.sender }}
                                         </span>
 
-                                        <span class="text-sm text-slate-500">
-                                            to everyone
-                                        </span>
+                                        {% if message.message_type == "private" %}
+                                            <span class="text-sm text-slate-500">
+                                                to @{{ message.recipient }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-sm text-slate-500">
+                                                to everyone
+                                            </span>
+                                        {% endif %}
                                     </div>
 
-                                    {% if message.integrity_verified %}
-                                        <span class="w-fit rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                                            Integrity verified
-                                        </span>
-                                    {% else %}
-                                        <span class="w-fit rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-                                            Integrity failed
-                                        </span>
-                                    {% endif %}
+                                    <div class="flex flex-wrap gap-2">
+                                        {% if message.message_type == "private" %}
+                                            <span class="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+                                                Private
+                                            </span>
+                                        {% else %}
+                                            <span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                                General
+                                            </span>
+                                        {% endif %}
+
+                                        {% if message.integrity_verified %}
+                                            <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                                                Verified
+                                            </span>
+                                        {% else %}
+                                            <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                                                Failed
+                                            </span>
+                                        {% endif %}
+                                    </div>
                                 </div>
 
                                 <p class="whitespace-pre-wrap text-slate-800">
@@ -107,7 +134,7 @@
                     </div>
                 {% else %}
                     <p class="text-slate-500">
-                        No encrypted room messages yet.
+                        No messages available.
                     </p>
                 {% endif %}
             </div>
@@ -116,8 +143,9 @@
                 <h2 class="mb-2 text-xl font-bold">Send Message</h2>
 
                 <p class="mb-4 text-sm text-slate-500">
-                    General room messages are encrypted before they are stored.
-                    Private messages will be added in Milestone 6.
+                    Send a general message normally. Start with
+                    <span class="font-semibold">@username</span>
+                    to send a private encrypted message.
                 </p>
 
                 <form
@@ -130,7 +158,7 @@
                         name="content"
                         required
                         data-submit-on-enter
-                        placeholder="Send a general room message"
+                        placeholder="Hello everyone or @bob This is private"
                         class="min-h-32 w-full resize-y rounded-lg border border-slate-300 px-4 py-3 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     ></textarea>
 
