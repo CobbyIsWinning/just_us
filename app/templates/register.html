@@ -13,7 +13,7 @@
         <p class="mb-4 rounded-lg bg-emerald-100 px-4 py-3 text-emerald-800">{{ success }}</p>
     {% endif %}
 
-    <form method="post" action="/register" class="space-y-5">
+    <form method="post" action="/register" class="space-y-5" data-submit-guard>
         <div>
             <label class="mb-2 block font-semibold">Username</label>
             <input
@@ -34,8 +34,18 @@
             >
         </div>
 
-        <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">
-            Register
+        <button
+            type="submit"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700 disabled:hover:bg-slate-900"
+            data-submit-button
+            data-loading-text="Creating account..."
+        >
+            <span
+                class="hidden h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                data-submit-spinner
+                aria-hidden="true"
+            ></span>
+            <span data-submit-label>Register</span>
         </button>
     </form>
 

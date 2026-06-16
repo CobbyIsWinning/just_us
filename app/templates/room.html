@@ -2,59 +2,151 @@
 
 {% block content %}
 <section class="space-y-6">
-    <header class="flex flex-col gap-5 rounded-lg border border-slate-200 bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
+    <header class="flex flex-col gap-5 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
         <div>
             <h1 class="text-3xl font-bold tracking-normal">Just Us Room</h1>
+
             <p class="mt-1 text-slate-500">
-                Logged in as <span class="font-semibold text-slate-900">{{ username }}</span>
+                Logged in as
+                <span class="font-semibold text-slate-900">
+                    {{ username }}
+                </span>
             </p>
         </div>
 
-        <a href="/logout" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700">
+        <a
+            href="/logout"
+            class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700"
+        >
             Logout
         </a>
     </header>
 
-    <section class="rounded-lg border border-slate-200 bg-white p-6 shadow">
-        <h2 class="mb-4 text-xl font-bold">Room Members</h2>
+    {% if error %}
+        <div class="rounded-xl bg-red-100 px-4 py-3 text-red-800">
+            {{ error }}
+        </div>
+    {% endif %}
 
-        {% if users %}
-            <ul class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {% for user in users %}
-                    <li class="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                        <span>{{ user.username }}</span>
+    {% if success %}
+        <div class="rounded-xl bg-green-100 px-4 py-3 text-green-800">
+            {{ success }}
+        </div>
+    {% endif %}
 
-                        {% if user.username == username %}
-                            <span class="rounded-full bg-slate-200 px-3 py-1 text-sm text-slate-700">you</span>
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p class="text-slate-500">No registered users found.</p>
-        {% endif %}
-    </section>
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <aside class="rounded-2xl bg-white p-6 shadow">
+            <h2 class="mb-4 text-xl font-bold">Room Members</h2>
 
-    <section class="rounded-lg border border-slate-200 bg-white p-6 shadow">
-        <h2 class="mb-4 text-xl font-bold">Messages</h2>
-        <p class="text-slate-500">
-            Encrypted room and private messages will appear here in the next milestone.
-        </p>
-    </section>
+            {% if users %}
+                <ul class="space-y-3">
+                    {% for user in users %}
+                        <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                            <span>{{ user.username }}</span>
 
-    <section class="rounded-lg border border-slate-200 bg-white p-6 shadow">
-        <h2 class="mb-4 text-xl font-bold">Send Message</h2>
+                            {% if user.username == username %}
+                                <span class="rounded-full bg-slate-200 px-3 py-1 text-sm text-slate-700">
+                                    you
+                                </span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-slate-500">
+                    No registered users found.
+                </p>
+            {% endif %}
+        </aside>
 
-        <form class="space-y-4">
-            <textarea
-                placeholder="Type a general message or use @username for private message"
-                class="min-h-28 w-full resize-y rounded-lg border border-slate-300 px-4 py-3 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
-            ></textarea>
+        <section class="space-y-6 lg:col-span-2">
+            <div class="rounded-2xl bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-bold">Messages</h2>
 
-            <button type="button" class="rounded-lg bg-slate-900 px-6 py-3 font-semibold text-white hover:bg-slate-700">
-                Send
-            </button>
-        </form>
-    </section>
+                {% if messages %}
+                    <div class="space-y-4">
+                        {% for message in messages %}
+                            <article class="rounded-xl border border-slate-200 p-4">
+                                <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <span class="font-semibold">
+                                            {{ message.sender }}
+                                        </span>
+
+                                        {% if message.message_type == "private" %}
+                                            <span class="text-slate-500">
+                                                to @{{ message.recipient }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-slate-500">
+                                                to everyone
+                                            </span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if message.message_type == "private" %}
+                                        <span class="w-fit rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+                                            Private
+                                        </span>
+                                    {% else %}
+                                        <span class="w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                            General
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <p class="whitespace-pre-wrap text-slate-800">
+                                    {{ message.content }}
+                                </p>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-slate-500">
+                        No messages available.
+                    </p>
+                {% endif %}
+            </div>
+
+            <div class="rounded-2xl bg-white p-6 shadow">
+                <h2 class="mb-2 text-xl font-bold">Send Message</h2>
+
+                <p class="mb-4 text-sm text-slate-500">
+                    Send a general message normally or start with
+                    <span class="font-semibold">@username</span>
+                    for a private message.
+                </p>
+
+                <form
+                    method="post"
+                    action="/room/messages"
+                    class="space-y-4"
+                    data-submit-guard
+                >
+                    <textarea
+                        name="content"
+                        required
+                        data-submit-on-enter
+                        placeholder="Hello everyone or @bob This is private"
+                        class="min-h-32 w-full resize-y rounded-lg border border-slate-300 px-4 py-3 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    ></textarea>
+
+                    <button
+                        type="submit"
+                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-6 py-3 font-semibold text-white hover:bg-slate-700 disabled:hover:bg-slate-900"
+                        data-submit-button
+                        data-loading-text="Sending..."
+                    >
+                        <span
+                            class="hidden h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                            data-submit-spinner
+                            aria-hidden="true"
+                        ></span>
+                        <span data-submit-label>Send</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+    </div>
 </section>
 {% endblock %}

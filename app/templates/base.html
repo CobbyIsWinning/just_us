@@ -11,5 +11,63 @@
     <main class="mx-auto w-full max-w-5xl px-5 py-10">
         {% block content %}{% endblock %}
     </main>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelectorAll("form[data-submit-guard]").forEach((form) => {
+                form.addEventListener("submit", (event) => {
+                    if (!form.checkValidity()) {
+                        return;
+                    }
+
+                    if (form.dataset.submitting === "true") {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    form.dataset.submitting = "true";
+
+                    const button = form.querySelector("[data-submit-button]");
+                    if (!button) {
+                        return;
+                    }
+
+                    const label = button.querySelector("[data-submit-label]");
+                    const spinner = button.querySelector("[data-submit-spinner]");
+
+                    button.disabled = true;
+                    button.classList.add("cursor-not-allowed", "opacity-75");
+
+                    if (label && button.dataset.loadingText) {
+                        label.textContent = button.dataset.loadingText;
+                    }
+
+                    if (spinner) {
+                        spinner.classList.remove("hidden");
+                    }
+                });
+            });
+
+            document.querySelectorAll("textarea[data-submit-on-enter]").forEach((textarea) => {
+                textarea.addEventListener("keydown", (event) => {
+                    if (event.key !== "Enter" || event.shiftKey) {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    const form = textarea.form;
+                    if (!form || form.dataset.submitting === "true") {
+                        return;
+                    }
+
+                    if (form.requestSubmit) {
+                        form.requestSubmit();
+                    } else {
+                        form.submit();
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
