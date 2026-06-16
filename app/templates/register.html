@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="mx-auto mt-20 max-w-md rounded-lg border border-slate-200 bg-white p-8 shadow-lg">
+    <h1 class="text-3xl font-bold tracking-normal">Just Us</h1>
+    <p class="mb-8 mt-2 text-slate-500">Create an account</p>
+
+    {% if error %}
+        <p class="mb-4 rounded-lg bg-red-100 px-4 py-3 text-red-800">{{ error }}</p>
+    {% endif %}
+
+    {% if success %}
+        <p class="mb-4 rounded-lg bg-emerald-100 px-4 py-3 text-emerald-800">{{ success }}</p>
+    {% endif %}
+
+    <form method="post" action="/register" class="space-y-5">
+        <div>
+            <label class="mb-2 block font-semibold">Username</label>
+            <input
+                type="text"
+                name="username"
+                required
+                class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            >
+        </div>
+
+        <div>
+            <label class="mb-2 block font-semibold">Password</label>
+            <input
+                type="password"
+                name="password"
+                required
+                class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            >
+        </div>
+
+        <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">
+            Register
+        </button>
+    </form>
+
+    <p class="mt-6 text-center text-slate-600">
+        Already have an account?
+        <a href="/login" class="font-semibold text-slate-900 underline">Login</a>
+    </p>
+</section>
+{% endblock %}
