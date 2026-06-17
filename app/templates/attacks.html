@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="space-y-6">
+    <header class="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                Security demonstration
+            </p>
+
+            <h1 class="mt-1 text-3xl font-bold">
+                Attack Simulations
+            </h1>
+
+            <p class="mt-2 text-slate-500">
+                Logged in as
+                <span class="font-semibold text-slate-900">
+                    {{ username }}
+                </span>
+            </p>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+            <a
+                href="/room"
+                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+            >
+                Back to room
+            </a>
+
+            <a
+                href="/logs"
+                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+            >
+                Security Logs
+            </a>
+
+            <a
+                href="/dev/storage"
+                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+            >
+                Encrypted Storage
+            </a>
+
+            <a
+                href="/logout"
+                class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700"
+            >
+                Logout
+            </a>
+        </div>
+    </header>
+
+    <section class="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <h2 class="font-bold text-amber-900">
+            Controlled simulations
+        </h2>
+
+        <p class="mt-2 text-sm text-amber-800">
+            These actions intentionally trigger security defenses for report
+            screenshots. MITM creates and tampers with a demo message. Brute force
+            uses the dedicated <span class="font-mono">attack_demo</span> account.
+        </p>
+    </section>
+
+    {% if result %}
+        <section class="rounded-2xl border border-green-200 bg-green-50 p-5">
+            <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="font-bold text-green-900">
+                        {{ result.name }}
+                    </h2>
+
+                    <p class="mt-1 text-sm text-green-800">
+                        {{ result.details }}
+                    </p>
+                </div>
+
+                <span class="w-fit rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                    {{ result.status }}
+                </span>
+            </div>
+
+            <p class="mt-3 text-xs text-green-700">
+                Logged event: <span class="font-mono">{{ result.log_event }}</span>
+            </p>
+        </section>
+    {% endif %}
+
+    <section class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <article class="rounded-2xl bg-white p-6 shadow">
+            <h2 class="text-xl font-bold">
+                MITM Tampering
+            </h2>
+
+            <p class="mt-3 text-sm text-slate-500">
+                Creates an encrypted room message, modifies its HMAC, and confirms
+                the message is rejected during integrity verification.
+            </p>
+
+            <form method="post" action="/attacks/mitm" class="mt-5" data-submit-guard>
+                <button
+                    type="submit"
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700 disabled:hover:bg-slate-900"
+                    data-submit-button
+                    data-loading-text="Running..."
+                >
+                    <span
+                        class="hidden h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                        data-submit-spinner
+                        aria-hidden="true"
+                    ></span>
+                    <span data-submit-label>Run MITM Simulation</span>
+                </button>
+            </form>
+        </article>
+
+        <article class="rounded-2xl bg-white p-6 shadow">
+            <h2 class="text-xl font-bold">
+                Replay Attack
+            </h2>
+
+            <p class="mt-3 text-sm text-slate-500">
+                Attempts to reuse an existing replay token and rejects the duplicate
+                before another message is stored.
+            </p>
+
+            <form method="post" action="/attacks/replay" class="mt-5" data-submit-guard>
+                <button
+                    type="submit"
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700 disabled:hover:bg-slate-900"
+                    data-submit-button
+                    data-loading-text="Running..."
+                >
+                    <span
+                        class="hidden h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                        data-submit-spinner
+                        aria-hidden="true"
+                    ></span>
+                    <span data-submit-label>Run Replay Simulation</span>
+                </button>
+            </form>
+        </article>
+
+        <article class="rounded-2xl bg-white p-6 shadow">
+            <h2 class="text-xl font-bold">
+                Brute Force
+            </h2>
+
+            <p class="mt-3 text-sm text-slate-500">
+                Submits repeated wrong passwords for the demo account and confirms
+                the failed-attempt defense logs detection.
+            </p>
+
+            <form method="post" action="/attacks/bruteforce" class="mt-5" data-submit-guard>
+                <button
+                    type="submit"
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700 disabled:hover:bg-slate-900"
+                    data-submit-button
+                    data-loading-text="Running..."
+                >
+                    <span
+                        class="hidden h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                        data-submit-spinner
+                        aria-hidden="true"
+                    ></span>
+                    <span data-submit-label>Run Brute-force Simulation</span>
+                </button>
+            </form>
+        </article>
+    </section>
+</section>
+{% endblock %}

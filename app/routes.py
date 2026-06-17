@@ -8,13 +8,21 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.auth import authenticate_user, create_user
+from app.attack_service import (
+    simulate_bruteforce_attack,
+    simulate_mitm_tampering,
+    simulate_replay_attack,
+)
 from app.database import get_db
+from app.log_service import get_security_log_lines
+from app.logger_config import log_security_event
 from app.message_service import (
     create_general_message,
     create_private_message,
     get_visible_messages,
 )
 from app.models import User
+from app.storage_service import get_stored_keys, get_stored_messages
 
 router = APIRouter()
 
@@ -170,7 +178,14 @@ def register_user(
     )
 
     if not user:
-        logging.warning(
+        log_security_event(
+            "REGISTRATION_DUPLICATE_REJECTED",
+            level=logging.WARNING,
+            username=username,
+            action="rejected",
+        )
+
+        logging.debug(
             "Registration rejected for duplicate username: %s",
             username,
         )
@@ -185,7 +200,13 @@ def register_user(
             status_code=409,
         )
 
-    logging.info(
+    log_security_event(
+        "USER_REGISTERED",
+        username=username,
+        user_id=user.id,
+    )
+
+    logging.debug(
         "New user registered: %s",
         username,
     )
@@ -233,7 +254,7 @@ def login_user(
     )
 
     if error:
-        logging.warning(
+        logging.debug(
             "Login failed for %s: %s",
             username,
             error,
@@ -252,7 +273,13 @@ def login_user(
     request.session["user_id"] = user.id
     request.session["username"] = user.username
 
-    logging.info(
+    log_security_event(
+        "SESSION_CREATED",
+        username=username,
+        user_id=user.id,
+    )
+
+    logging.debug(
         "User logged in: %s",
         username,
     )
@@ -270,7 +297,12 @@ def logout_user(request: Request):
     request.session.clear()
 
     if username:
-        logging.info(
+        log_security_event(
+            "LOGOUT",
+            username=username,
+        )
+
+        logging.debug(
             "User logged out: %s",
             username,
         )
@@ -310,6 +342,30 @@ def room_page(
         db=db,
         current_user=current_user,
     )
+    general_messages = [
+        message
+        for message in messages
+        if message.message_type == "general"
+    ]
+    private_messages = [
+        message
+        for message in messages
+        if message.message_type == "private"
+    ]
+    security_summary = {
+        "total_messages": len(messages),
+        "verified_messages": sum(
+            1
+            for message in messages
+            if message.integrity_verified
+        ),
+        "failed_messages": sum(
+            1
+            for message in messages
+            if not message.integrity_verified
+        ),
+        "private_messages": len(private_messages),
+    }
 
     return templates.TemplateResponse(
         request=request,
@@ -318,6 +374,9 @@ def room_page(
             "username": current_user.username,
             "users": users,
             "messages": messages,
+            "general_messages": general_messages,
+            "private_messages": private_messages,
+            "security_summary": security_summary,
             "error": error,
             "success": success,
         },
@@ -415,4 +474,209 @@ def send_message(
     return RedirectResponse(
         url="/room?success=" + quote(success_message),
         status_code=303,
+    )
+
+
+@router.get(
+    "/dev/storage",
+    response_class=HTMLResponse,
+)
+def developer_storage_page(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(
+        request=request,
+        db=db,
+    )
+
+    if not current_user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    messages = get_stored_messages(db)
+    keys = get_stored_keys(db)
+
+    log_security_event(
+        "STORAGE_VIEW_ACCESSED",
+        username=current_user.username,
+        user_id=current_user.id,
+        message_records=len(messages),
+        key_records=len(keys),
+    )
+
+    logging.debug(
+        "Developer encrypted-storage view accessed by %s",
+        current_user.username,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="storage.html",
+        context={
+            "username": current_user.username,
+            "messages": messages,
+            "keys": keys,
+        },
+    )
+
+
+@router.get("/logs", response_class=HTMLResponse)
+def logs_page(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(
+        request=request,
+        db=db,
+    )
+
+    if not current_user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    log_lines = get_security_log_lines()
+
+    log_security_event(
+        "LOG_VIEW_ACCESSED",
+        username=current_user.username,
+        user_id=current_user.id,
+        displayed_lines=len(log_lines),
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="logs.html",
+        context={
+            "username": current_user.username,
+            "log_lines": log_lines,
+        },
+    )
+
+
+def render_attacks_page(
+    request: Request,
+    current_user: User,
+    result=None,
+):
+    return templates.TemplateResponse(
+        request=request,
+        name="attacks.html",
+        context={
+            "username": current_user.username,
+            "result": result,
+        },
+    )
+
+
+@router.get("/attacks", response_class=HTMLResponse)
+def attacks_page(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(
+        request=request,
+        db=db,
+    )
+
+    if not current_user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    log_security_event(
+        "ATTACK_VIEW_ACCESSED",
+        username=current_user.username,
+        user_id=current_user.id,
+    )
+
+    return render_attacks_page(
+        request=request,
+        current_user=current_user,
+    )
+
+
+@router.post("/attacks/mitm", response_class=HTMLResponse)
+def run_mitm_attack(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(
+        request=request,
+        db=db,
+    )
+
+    if not current_user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    result = simulate_mitm_tampering(
+        db=db,
+        current_user=current_user,
+    )
+
+    return render_attacks_page(
+        request=request,
+        current_user=current_user,
+        result=result,
+    )
+
+
+@router.post("/attacks/replay", response_class=HTMLResponse)
+def run_replay_attack(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(
+        request=request,
+        db=db,
+    )
+
+    if not current_user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    result = simulate_replay_attack(
+        db=db,
+        current_user=current_user,
+    )
+
+    return render_attacks_page(
+        request=request,
+        current_user=current_user,
+        result=result,
+    )
+
+
+@router.post("/attacks/bruteforce", response_class=HTMLResponse)
+def run_bruteforce_attack(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(
+        request=request,
+        db=db,
+    )
+
+    if not current_user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    result = simulate_bruteforce_attack(db)
+
+    return render_attacks_page(
+        request=request,
+        current_user=current_user,
+        result=result,
     )

@@ -14,12 +14,35 @@
             </p>
         </div>
 
-        <a
-            href="/logout"
-            class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700"
-        >
-            Logout
-        </a>
+        <div class="flex flex-wrap gap-3">
+            <a
+                href="/dev/storage"
+                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+            >
+                Encrypted Storage
+            </a>
+
+            <a
+                href="/logs"
+                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+            >
+                Security Logs
+            </a>
+
+            <a
+                href="/attacks"
+                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+            >
+                Attacks
+            </a>
+
+            <a
+                href="/logout"
+                class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700"
+            >
+                Logout
+            </a>
+        </div>
     </header>
 
     {% if error %}
@@ -34,51 +57,113 @@
         </div>
     {% endif %}
 
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+            <p class="text-sm font-semibold text-emerald-800">
+                AES-256-GCM
+            </p>
+            <p class="mt-1 text-2xl font-bold text-emerald-950">
+                Active
+            </p>
+        </div>
+
+        <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5">
+            <p class="text-sm font-semibold text-sky-800">
+                HMAC verified
+            </p>
+            <p class="mt-1 text-2xl font-bold text-sky-950">
+                {{ security_summary.verified_messages }}
+            </p>
+        </div>
+
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+            <p class="text-sm font-semibold text-rose-800">
+                Integrity failures
+            </p>
+            <p class="mt-1 text-2xl font-bold text-rose-950">
+                {{ security_summary.failed_messages }}
+            </p>
+        </div>
+
+        <div class="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+            <p class="text-sm font-semibold text-violet-800">
+                Private messages
+            </p>
+            <p class="mt-1 text-2xl font-bold text-violet-950">
+                {{ security_summary.private_messages }}
+            </p>
+        </div>
+    </section>
+
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <aside class="rounded-2xl bg-white p-6 shadow">
-            <h2 class="mb-4 text-xl font-bold">Room Members</h2>
+        <aside class="space-y-6">
+            <section class="rounded-2xl bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-bold">Room Members</h2>
 
-            {% if users %}
-                <ul class="space-y-3">
-                    {% for user in users %}
-                        <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                            <span>{{ user.username }}</span>
+                {% if users %}
+                    <ul class="space-y-3">
+                        {% for user in users %}
+                            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                                <span>{{ user.username }}</span>
 
-                            {% if user.username == username %}
-                                <span class="rounded-full bg-slate-200 px-3 py-1 text-sm text-slate-700">
-                                    you
-                                </span>
-                            {% endif %}
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p class="text-slate-500">
-                    No registered users found.
-                </p>
-            {% endif %}
+                                {% if user.username == username %}
+                                    <span class="rounded-full bg-slate-200 px-3 py-1 text-sm text-slate-700">
+                                        you
+                                    </span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-slate-500">
+                        No registered users found.
+                    </p>
+                {% endif %}
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow">
+                <h2 class="text-xl font-bold">Message Routing</h2>
+
+                <div class="mt-4 space-y-3 text-sm text-slate-600">
+                    <p>
+                        General messages use the shared room key and are visible
+                        to every active user.
+                    </p>
+
+                    <p>
+                        Private messages start with
+                        <span class="font-semibold text-slate-900">@username</span>
+                        and use a pair-specific key.
+                    </p>
+                </div>
+            </section>
         </aside>
 
         <section class="space-y-6 lg:col-span-2">
             <div class="rounded-2xl bg-white p-6 shadow">
                 <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <h2 class="text-xl font-bold">Messages</h2>
+                    <div>
+                        <h2 class="text-xl font-bold">General Messages</h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            Shared encrypted room traffic.
+                        </p>
+                    </div>
 
                     <span class="w-fit rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                        Encrypted storage
+                        Room key
                     </span>
                 </div>
 
-                {% if messages %}
+                {% if general_messages %}
                     <div class="space-y-4">
-                        {% for message in messages %}
+                        {% for message in general_messages %}
                             <article
                                 class="
                                     rounded-xl border p-4
-                                    {% if message.message_type == 'private' %}
-                                        border-purple-200 bg-purple-50
-                                    {% else %}
+                                    {% if message.integrity_verified %}
                                         border-slate-200 bg-white
+                                    {% else %}
+                                        border-red-200 bg-red-50
                                     {% endif %}
                                 "
                             >
@@ -88,27 +173,15 @@
                                             {{ message.sender }}
                                         </span>
 
-                                        {% if message.message_type == "private" %}
-                                            <span class="text-sm text-slate-500">
-                                                to @{{ message.recipient }}
-                                            </span>
-                                        {% else %}
-                                            <span class="text-sm text-slate-500">
-                                                to everyone
-                                            </span>
-                                        {% endif %}
+                                        <span class="text-sm text-slate-500">
+                                            to everyone
+                                        </span>
                                     </div>
 
                                     <div class="flex flex-wrap gap-2">
-                                        {% if message.message_type == "private" %}
-                                            <span class="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
-                                                Private
-                                            </span>
-                                        {% else %}
-                                            <span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                                                General
-                                            </span>
-                                        {% endif %}
+                                        <span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                            General
+                                        </span>
 
                                         {% if message.integrity_verified %}
                                             <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
@@ -134,7 +207,70 @@
                     </div>
                 {% else %}
                     <p class="text-slate-500">
-                        No messages available.
+                        No general messages available.
+                    </p>
+                {% endif %}
+            </div>
+
+            <div class="rounded-2xl bg-white p-6 shadow">
+                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold">Private Messages</h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            Only messages where you are the sender or recipient.
+                        </p>
+                    </div>
+
+                    <span class="w-fit rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                        Pair key
+                    </span>
+                </div>
+
+                {% if private_messages %}
+                    <div class="space-y-4">
+                        {% for message in private_messages %}
+                            <article class="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                                <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                        <span class="font-semibold">
+                                            {{ message.sender }}
+                                        </span>
+
+                                        <span class="text-sm text-slate-500">
+                                            to @{{ message.recipient }}
+                                        </span>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-2">
+                                        <span class="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                                            Private
+                                        </span>
+
+                                        {% if message.integrity_verified %}
+                                            <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                                                Verified
+                                            </span>
+                                        {% else %}
+                                            <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                                                Failed
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <p class="whitespace-pre-wrap text-slate-800">
+                                    {{ message.content }}
+                                </p>
+
+                                <p class="mt-3 text-xs text-slate-400">
+                                    Message ID: {{ message.id }}
+                                </p>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-slate-500">
+                        No private messages visible to you.
                     </p>
                 {% endif %}
             </div>

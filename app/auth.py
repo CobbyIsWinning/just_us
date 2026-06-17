@@ -1,6 +1,8 @@
 import bcrypt
+import logging
 from sqlalchemy.orm import Session
 
+from app.logger_config import log_security_event
 from app.models import LoginAttempt, User
 
 MAX_FAILED_ATTEMPTS = 3
@@ -79,6 +81,12 @@ def authenticate_user(
             False,
             "User does not exist",
         )
+        log_security_event(
+            "LOGIN_FAILURE",
+            level=logging.WARNING,
+            username=username,
+            reason="User does not exist",
+        )
         return None, "Invalid username or password."
 
     if not user.is_active:
@@ -88,6 +96,12 @@ def authenticate_user(
             False,
             "Inactive account",
         )
+        log_security_event(
+            "LOGIN_FAILURE",
+            level=logging.WARNING,
+            username=username,
+            reason="Inactive account",
+        )
         return None, "This account is inactive."
 
     if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
@@ -96,6 +110,13 @@ def authenticate_user(
             username,
             False,
             "Account blocked after repeated failures",
+        )
+        log_security_event(
+            "BRUTE_FORCE_DETECTED",
+            level=logging.WARNING,
+            username=username,
+            failed_attempts=user.failed_login_attempts,
+            action="blocked_login_rejected",
         )
         return None, "Account temporarily blocked."
 
@@ -112,7 +133,23 @@ def authenticate_user(
 
         remaining_attempts = MAX_FAILED_ATTEMPTS - user.failed_login_attempts
 
+        log_security_event(
+            "LOGIN_FAILURE",
+            level=logging.WARNING,
+            username=username,
+            reason="Incorrect password",
+            failed_attempts=user.failed_login_attempts,
+            attempts_remaining=max(remaining_attempts, 0),
+        )
+
         if remaining_attempts <= 0:
+            log_security_event(
+                "BRUTE_FORCE_DETECTED",
+                level=logging.WARNING,
+                username=username,
+                failed_attempts=user.failed_login_attempts,
+                action="account_temporarily_blocked",
+            )
             return None, "Account temporarily blocked."
 
         return (
@@ -129,6 +166,12 @@ def authenticate_user(
         username,
         True,
         "Login successful",
+    )
+
+    log_security_event(
+        "LOGIN_SUCCESS",
+        username=username,
+        user_id=user.id,
     )
 
     return user, None

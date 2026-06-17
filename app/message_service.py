@@ -15,6 +15,7 @@ from app.crypto_utils import (
     protect_message_keys,
     recover_message_keys,
 )
+from app.logger_config import log_security_event
 from app.models import ConversationKey, Message, User
 
 
@@ -60,7 +61,11 @@ def get_or_create_room_keys(db: Session):
     db.add(room_key_record)
     db.commit()
 
-    logging.info("Secure room encryption keys generated and stored.")
+    log_security_event(
+        "ROOM_KEY_CREATED",
+        key_scope=ROOM_KEY_SCOPE,
+        key_record_id=room_key_record.id,
+    )
 
     return message_keys
 
@@ -96,10 +101,12 @@ def create_general_message(
     db.commit()
     db.refresh(message)
 
-    logging.info(
-        "General message encrypted and stored. Sender=%s MessageID=%s",
-        sender.username,
-        message.id,
+    log_security_event(
+        "GENERAL_MESSAGE_ENCRYPTED",
+        sender=sender.username,
+        sender_id=sender.id,
+        message_id=message.id,
+        replay_token=message.replay_token,
     )
 
     return message
@@ -122,6 +129,11 @@ def get_general_messages(
         room_keys = get_or_create_room_keys(db)
     except KeyProtectionError:
         logging.exception("Room encryption keys could not be recovered.")
+        log_security_event(
+            "KEY_RECOVERY_FAILURE",
+            level=logging.ERROR,
+            key_scope=ROOM_KEY_SCOPE,
+        )
         return []
 
     display_messages: list[DisplayMessage] = []
@@ -151,15 +163,34 @@ def get_general_messages(
                 )
             )
 
-            logging.info(
-                "General message decrypted successfully. MessageID=%s",
-                message.id,
+            log_security_event(
+                "HMAC_VERIFICATION_SUCCESS",
+                message_id=message.id,
+                message_type=message.message_type,
+            )
+
+            log_security_event(
+                "MESSAGE_DECRYPTED",
+                message_id=message.id,
+                message_type=message.message_type,
+                viewer="room",
             )
 
         except IntegrityError:
-            logging.error(
-                "HMAC verification failed. Possible tampering. MessageID=%s",
-                message.id,
+            log_security_event(
+                "HMAC_VERIFICATION_FAILURE",
+                level=logging.ERROR,
+                message_id=message.id,
+                message_type=message.message_type,
+                action="message_rejected",
+            )
+
+            log_security_event(
+                "MITM_TAMPERING_DETECTED",
+                level=logging.ERROR,
+                message_id=message.id,
+                message_type=message.message_type,
+                action="message_rejected",
             )
 
             display_messages.append(
@@ -178,6 +209,12 @@ def get_general_messages(
             logging.exception(
                 "Message decryption failed. MessageID=%s",
                 message.id,
+            )
+            log_security_event(
+                "MESSAGE_DECRYPTION_FAILURE",
+                level=logging.ERROR,
+                message_id=message.id,
+                message_type=message.message_type,
             )
 
             display_messages.append(
@@ -243,16 +280,21 @@ def get_or_create_private_keys(
     db.add(key_record)
     db.commit()
 
-    logging.info(
-        "Private secure handshake completed. UserA=%s UserB=%s",
-        user_a.username,
-        user_b.username,
+    log_security_event(
+        "PRIVATE_HANDSHAKE_CREATED",
+        user_a=user_a.username,
+        user_b=user_b.username,
+        user_a_id=user_a.id,
+        user_b_id=user_b.id,
     )
 
-    logging.info(
-        "Private conversation keys generated and protected. UserA=%s UserB=%s",
-        user_a.username,
-        user_b.username,
+    log_security_event(
+        "PRIVATE_KEY_CREATED",
+        key_record_id=key_record.id,
+        user_a=user_a.username,
+        user_b=user_b.username,
+        user_a_id=first_user_id,
+        user_b_id=second_user_id,
     )
 
     return message_keys
@@ -299,12 +341,14 @@ def create_private_message(
     db.commit()
     db.refresh(message)
 
-    logging.info(
-        "Private message encrypted and stored. "
-        "Sender=%s Recipient=%s MessageID=%s",
-        sender.username,
-        recipient.username,
-        message.id,
+    log_security_event(
+        "PRIVATE_MESSAGE_ENCRYPTED",
+        sender=sender.username,
+        recipient=recipient.username,
+        sender_id=sender.id,
+        recipient_id=recipient.id,
+        message_id=message.id,
+        replay_token=message.replay_token,
     )
 
     return message
@@ -331,9 +375,10 @@ def get_private_messages_for_user(
 
     for message in database_messages:
         if not message.recipient:
-            logging.error(
-                "Private message has no recipient. MessageID=%s",
-                message.id,
+            log_security_event(
+                "PRIVATE_MESSAGE_RECIPIENT_MISSING",
+                level=logging.ERROR,
+                message_id=message.id,
             )
             continue
 
@@ -367,19 +412,37 @@ def get_private_messages_for_user(
                 )
             )
 
-            logging.info(
-                "Private message decrypted successfully. "
-                "Viewer=%s MessageID=%s",
-                current_user.username,
-                message.id,
+            log_security_event(
+                "HMAC_VERIFICATION_SUCCESS",
+                message_id=message.id,
+                message_type=message.message_type,
+                viewer=current_user.username,
+            )
+
+            log_security_event(
+                "MESSAGE_DECRYPTED",
+                message_id=message.id,
+                message_type=message.message_type,
+                viewer=current_user.username,
             )
 
         except IntegrityError:
-            logging.error(
-                "Private-message HMAC verification failed. "
-                "Viewer=%s MessageID=%s",
-                current_user.username,
-                message.id,
+            log_security_event(
+                "HMAC_VERIFICATION_FAILURE",
+                level=logging.ERROR,
+                message_id=message.id,
+                message_type=message.message_type,
+                viewer=current_user.username,
+                action="message_rejected",
+            )
+
+            log_security_event(
+                "MITM_TAMPERING_DETECTED",
+                level=logging.ERROR,
+                message_id=message.id,
+                message_type=message.message_type,
+                viewer=current_user.username,
+                action="message_rejected",
             )
 
             display_messages.append(
@@ -403,6 +466,13 @@ def get_private_messages_for_user(
                 "Viewer=%s MessageID=%s",
                 current_user.username,
                 message.id,
+            )
+            log_security_event(
+                "MESSAGE_DECRYPTION_FAILURE",
+                level=logging.ERROR,
+                message_id=message.id,
+                message_type=message.message_type,
+                viewer=current_user.username,
             )
 
             display_messages.append(
