@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -44,3 +45,8 @@ def health_check():
         "status": "healthy",
         "application": "Just Us",
     }
+
+
+@app.get("/logo.png")
+def logo():
+    return FileResponse("app/logo.png")

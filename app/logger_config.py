@@ -1,11 +1,22 @@
 import logging
 import os
+from datetime import datetime, timezone
 
-SECURITY_LOG_PATH = "logs/security.log"
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+
+
+SECURITY_LOG_PATH = os.getenv(
+    "SECURITY_LOG_PATH",
+    "/tmp/just_us_security.log" if os.getenv("VERCEL") else "logs/security.log",
+)
 
 
 def setup_logger():
-    os.makedirs("logs", exist_ok=True)
+    log_directory = os.path.dirname(SECURITY_LOG_PATH)
+
+    if log_directory:
+        os.makedirs(log_directory, exist_ok=True)
 
     logging.basicConfig(
         filename=SECURITY_LOG_PATH,
@@ -44,6 +55,51 @@ def log_security_event(
         message = f"{message} {field_text}"
 
     logging.log(level, message)
+    write_security_event_to_database(
+        event=event,
+        level=logging.getLevelName(level),
+        message=message,
+        field_text=field_text or None,
+    )
+
+
+def write_security_event_to_database(
+    event: str,
+    level: str,
+    message: str,
+    field_text: str | None,
+) -> None:
+    try:
+        from app.database import SessionLocal
+
+        db = SessionLocal()
+
+        try:
+            db.execute(
+                text(
+                    """
+                    INSERT INTO security_logs
+                        (event, level, message, fields, created_at)
+                    VALUES
+                        (:event, :level, :message, :fields, :created_at)
+                    """
+                ),
+                {
+                    "event": event,
+                    "level": level,
+                    "message": message,
+                    "fields": field_text,
+                    "created_at": datetime.now(timezone.utc),
+                },
+            )
+            db.commit()
+        finally:
+            db.close()
+    except (SQLAlchemyError, RuntimeError, ImportError):
+        logging.debug(
+            "Security log database write skipped.",
+            exc_info=True,
+        )
 
 
 def log_replay_detection(

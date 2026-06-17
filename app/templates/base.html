@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Just Us</title>
+    <link rel="icon" type="image/png" href="/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <main class="mx-auto w-full max-w-6xl px-5 py-10">
+    <main class="mx-auto w-full max-w-6xl px-3 py-4 sm:px-5 sm:py-8 lg:py-10">
         {% block content %}{% endblock %}
     </main>
     <script>

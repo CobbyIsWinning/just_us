@@ -146,3 +146,16 @@ class LoginAttempt(Base):
     reason = Column(String(255), nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=utc_now)
+
+
+class SecurityLog(Base):
+    __tablename__ = "security_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    event = Column(String(100), nullable=False, index=True)
+    level = Column(String(20), nullable=False, default="INFO")
+    message = Column(Text, nullable=False)
+    fields = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=utc_now)
