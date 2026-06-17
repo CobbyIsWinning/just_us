@@ -8,6 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.database import Base, engine
 from app.logger_config import setup_logger
 from app.routes import router
+from app.schema import ensure_schema_updates
 
 load_dotenv()
 setup_logger()
@@ -32,6 +33,7 @@ app.add_middleware(
 )
 
 Base.metadata.create_all(bind=engine)
+ensure_schema_updates()
 
 app.include_router(router)
 

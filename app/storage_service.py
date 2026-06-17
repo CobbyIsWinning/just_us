@@ -11,7 +11,9 @@ class StoredMessageRecord:
     id: int
     sender: str
     recipient: str | None
+    room: str | None
     message_type: str
+    key_version: int
     ciphertext: str
     nonce: str
     hmac_digest: str
@@ -23,8 +25,10 @@ class StoredMessageRecord:
 class StoredKeyRecord:
     id: int
     key_scope: str
+    room_id: int | None
     user_a_id: int | None
     user_b_id: int | None
+    key_version: int
     protected_key_value: str
     created_at: datetime
 
@@ -37,6 +41,7 @@ def get_stored_messages(
         .options(
             joinedload(Message.sender),
             joinedload(Message.recipient),
+            joinedload(Message.room),
         )
         .order_by(Message.created_at.desc())
         .all()
@@ -51,7 +56,13 @@ def get_stored_messages(
                 if message.recipient
                 else None
             ),
+            room=(
+                message.room.slug
+                if message.room
+                else None
+            ),
             message_type=message.message_type,
+            key_version=message.key_version,
             ciphertext=message.ciphertext,
             nonce=message.nonce,
             hmac_digest=message.hmac_digest,
@@ -75,8 +86,10 @@ def get_stored_keys(
         StoredKeyRecord(
             id=record.id,
             key_scope=record.key_scope,
+            room_id=record.room_id,
             user_a_id=record.user_a_id,
             user_b_id=record.user_b_id,
+            key_version=record.key_version,
             protected_key_value=record.key_value,
             created_at=record.created_at,
         )

@@ -16,7 +16,7 @@ from app.crypto_utils import (
     recover_message_keys,
 )
 from app.logger_config import log_security_event
-from app.models import ConversationKey, Message, User
+from app.models import ConversationKey, Message, Room, User
 
 
 ROOM_KEY_SCOPE = "room"
@@ -30,31 +30,67 @@ class DisplayMessage:
     content: str
     message_type: str
     recipient: str | None
+    room: str | None
     created_at: object
     integrity_verified: bool
 
 
-def get_or_create_room_keys(db: Session):
-    room_key_record = (
+def get_room_keys_for_version(
+    db: Session,
+    room: Room,
+    key_version: int,
+):
+    key_record = (
         db.query(ConversationKey)
         .filter(
             ConversationKey.key_scope == ROOM_KEY_SCOPE,
+            ConversationKey.room_id == room.id,
+            ConversationKey.key_version == key_version,
             ConversationKey.user_a_id.is_(None),
             ConversationKey.user_b_id.is_(None),
         )
         .first()
     )
 
+    if not key_record:
+        raise KeyProtectionError(
+            f"Room key version {key_version} was not found."
+        )
+
+    return recover_message_keys(key_record.key_value)
+
+
+def get_or_create_room_keys(
+    db: Session,
+    room: Room,
+):
+    room_key_record = (
+        db.query(ConversationKey)
+        .filter(
+            ConversationKey.key_scope == ROOM_KEY_SCOPE,
+            ConversationKey.room_id == room.id,
+            ConversationKey.user_a_id.is_(None),
+            ConversationKey.user_b_id.is_(None),
+        )
+        .order_by(ConversationKey.key_version.desc())
+        .first()
+    )
+
     if room_key_record:
-        return recover_message_keys(room_key_record.key_value)
+        return (
+            recover_message_keys(room_key_record.key_value),
+            room_key_record.key_version,
+        )
 
     message_keys = generate_message_keys()
     protected_keys = protect_message_keys(message_keys)
 
     room_key_record = ConversationKey(
         key_scope=ROOM_KEY_SCOPE,
+        room_id=room.id,
         user_a_id=None,
         user_b_id=None,
+        key_version=1,
         key_value=protected_keys,
     )
 
@@ -64,15 +100,19 @@ def get_or_create_room_keys(db: Session):
     log_security_event(
         "ROOM_KEY_CREATED",
         key_scope=ROOM_KEY_SCOPE,
+        room_id=room.id,
+        room_slug=room.slug,
+        key_version=room_key_record.key_version,
         key_record_id=room_key_record.id,
     )
 
-    return message_keys
+    return message_keys, room_key_record.key_version
 
 
 def create_general_message(
     db: Session,
     sender: User,
+    room: Room,
     plaintext: str,
 ) -> Message:
     cleaned_message = plaintext.strip()
@@ -80,7 +120,10 @@ def create_general_message(
     if not cleaned_message:
         raise ValueError("Message cannot be empty.")
 
-    room_keys = get_or_create_room_keys(db)
+    room_keys, key_version = get_or_create_room_keys(
+        db=db,
+        room=room,
+    )
 
     encrypted = encrypt_message(
         plaintext=cleaned_message,
@@ -90,7 +133,9 @@ def create_general_message(
     message = Message(
         sender_id=sender.id,
         recipient_id=None,
+        room_id=room.id,
         message_type="general",
+        key_version=key_version,
         ciphertext=encrypted.ciphertext,
         nonce=encrypted.nonce,
         hmac_digest=encrypted.hmac_digest,
@@ -105,6 +150,9 @@ def create_general_message(
         "GENERAL_MESSAGE_ENCRYPTED",
         sender=sender.username,
         sender_id=sender.id,
+        room_id=room.id,
+        room_slug=room.slug,
+        key_version=key_version,
         message_id=message.id,
         replay_token=message.replay_token,
     )
@@ -114,10 +162,14 @@ def create_general_message(
 
 def get_general_messages(
     db: Session,
+    room: Room,
 ) -> list[DisplayMessage]:
     database_messages = (
         db.query(Message)
-        .filter(Message.message_type == "general")
+        .filter(
+            Message.message_type == "general",
+            Message.room_id == room.id,
+        )
         .order_by(Message.created_at.asc())
         .all()
     )
@@ -126,7 +178,7 @@ def get_general_messages(
         return []
 
     try:
-        room_keys = get_or_create_room_keys(db)
+        get_or_create_room_keys(db, room)
     except KeyProtectionError:
         logging.exception("Room encryption keys could not be recovered.")
         log_security_event(
@@ -146,6 +198,12 @@ def get_general_messages(
         )
 
         try:
+            room_keys = get_room_keys_for_version(
+                db=db,
+                room=room,
+                key_version=message.key_version,
+            )
+
             plaintext = decrypt_message(
                 encrypted_message=encrypted,
                 keys=room_keys,
@@ -158,6 +216,7 @@ def get_general_messages(
                     content=plaintext,
                     message_type=message.message_type,
                     recipient=None,
+                    room=room.name,
                     created_at=message.created_at,
                     integrity_verified=True,
                 )
@@ -167,6 +226,8 @@ def get_general_messages(
                 "HMAC_VERIFICATION_SUCCESS",
                 message_id=message.id,
                 message_type=message.message_type,
+                room_id=room.id,
+                room_slug=room.slug,
             )
 
             log_security_event(
@@ -174,6 +235,8 @@ def get_general_messages(
                 message_id=message.id,
                 message_type=message.message_type,
                 viewer="room",
+                room_id=room.id,
+                room_slug=room.slug,
             )
 
         except IntegrityError:
@@ -182,6 +245,8 @@ def get_general_messages(
                 level=logging.ERROR,
                 message_id=message.id,
                 message_type=message.message_type,
+                room_id=room.id,
+                room_slug=room.slug,
                 action="message_rejected",
             )
 
@@ -190,6 +255,8 @@ def get_general_messages(
                 level=logging.ERROR,
                 message_id=message.id,
                 message_type=message.message_type,
+                room_id=room.id,
+                room_slug=room.slug,
                 action="message_rejected",
             )
 
@@ -200,6 +267,7 @@ def get_general_messages(
                     content="[Message rejected: integrity verification failed]",
                     message_type=message.message_type,
                     recipient=None,
+                    room=room.name,
                     created_at=message.created_at,
                     integrity_verified=False,
                 )
@@ -215,6 +283,8 @@ def get_general_messages(
                 level=logging.ERROR,
                 message_id=message.id,
                 message_type=message.message_type,
+                room_id=room.id,
+                room_slug=room.slug,
             )
 
             display_messages.append(
@@ -224,6 +294,7 @@ def get_general_messages(
                     content="[Message could not be decrypted]",
                     message_type=message.message_type,
                     recipient=None,
+                    room=room.name,
                     created_at=message.created_at,
                     integrity_verified=False,
                 )
@@ -274,6 +345,7 @@ def get_or_create_private_keys(
         key_scope=PRIVATE_KEY_SCOPE,
         user_a_id=first_user_id,
         user_b_id=second_user_id,
+        key_version=1,
         key_value=protected_keys,
     )
 
@@ -330,7 +402,9 @@ def create_private_message(
     message = Message(
         sender_id=sender.id,
         recipient_id=recipient.id,
+        room_id=None,
         message_type="private",
+        key_version=1,
         ciphertext=encrypted.ciphertext,
         nonce=encrypted.nonce,
         hmac_digest=encrypted.hmac_digest,
@@ -407,6 +481,7 @@ def get_private_messages_for_user(
                     content=plaintext,
                     message_type="private",
                     recipient=message.recipient.username,
+                    room=None,
                     created_at=message.created_at,
                     integrity_verified=True,
                 )
@@ -455,6 +530,7 @@ def get_private_messages_for_user(
                     ),
                     message_type="private",
                     recipient=message.recipient.username,
+                    room=None,
                     created_at=message.created_at,
                     integrity_verified=False,
                 )
@@ -482,6 +558,7 @@ def get_private_messages_for_user(
                     content="[Private message could not be decrypted]",
                     message_type="private",
                     recipient=message.recipient.username,
+                    room=None,
                     created_at=message.created_at,
                     integrity_verified=False,
                 )
@@ -493,11 +570,15 @@ def get_private_messages_for_user(
 def get_visible_messages(
     db: Session,
     current_user: User,
+    room: Room,
 ) -> list[DisplayMessage]:
     messages = []
 
     messages.extend(
-        get_general_messages(db)
+        get_general_messages(
+            db=db,
+            room=room,
+        )
     )
 
     messages.extend(

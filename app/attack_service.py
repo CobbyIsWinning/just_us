@@ -6,6 +6,7 @@ from app.auth import authenticate_user, create_user
 from app.logger_config import log_replay_detection, log_security_event
 from app.message_service import create_general_message, get_visible_messages
 from app.models import Message, User
+from app.room_service import ensure_default_room_for_user
 
 
 @dataclass
@@ -28,9 +29,15 @@ def simulate_mitm_tampering(
     db: Session,
     current_user: User,
 ) -> AttackResult:
+    room = ensure_default_room_for_user(
+        db=db,
+        user=current_user,
+    )
+
     message = create_general_message(
         db=db,
         sender=current_user,
+        room=room,
         plaintext="MITM attack simulation message.",
     )
 
@@ -40,6 +47,7 @@ def simulate_mitm_tampering(
     visible_messages = get_visible_messages(
         db=db,
         current_user=current_user,
+        room=room,
     )
 
     rejected_message = next(
@@ -89,9 +97,15 @@ def simulate_replay_attack(
     )
 
     if not source_message:
+        room = ensure_default_room_for_user(
+            db=db,
+            user=current_user,
+        )
+
         source_message = create_general_message(
             db=db,
             sender=current_user,
+            room=room,
             plaintext="Replay attack source message.",
         )
 

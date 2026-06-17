@@ -1,113 +1,294 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="space-y-6">
-    <header class="flex flex-col gap-5 rounded-2xl bg-white p-6 shadow md:flex-row md:items-center md:justify-between">
-        <div>
-            <h1 class="text-3xl font-bold tracking-normal">Just Us Room</h1>
+<section class="space-y-5">
+    <header class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow">
+        <div class="flex flex-col gap-5 border-b border-slate-200 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                    Encrypted messaging
+                </p>
 
-            <p class="mt-1 text-slate-500">
-                Logged in as
-                <span class="font-semibold text-slate-900">
-                    {{ username }}
-                </span>
-            </p>
+                <h1 class="mt-1 text-3xl font-bold tracking-normal">
+                    Just Us
+                </h1>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    Signed in as
+                    <span class="font-semibold text-slate-900">
+                        {{ username }}
+                    </span>
+                </p>
+            </div>
+
+            <nav class="flex flex-wrap gap-3">
+                <a
+                    href="/dev/storage"
+                    class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                    Encrypted Storage
+                </a>
+
+                <a
+                    href="/logs"
+                    class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                    Security Logs
+                </a>
+
+                <a
+                    href="/attacks"
+                    class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                    Attacks
+                </a>
+
+                <a
+                    href="/logout"
+                    class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
+                >
+                    Logout
+                </a>
+            </nav>
         </div>
 
-        <div class="flex flex-wrap gap-3">
-            <a
-                href="/dev/storage"
-                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
-            >
-                Encrypted Storage
-            </a>
+        <div class="grid grid-cols-2 divide-x divide-y divide-slate-200 md:grid-cols-4 md:divide-y-0">
+            <div class="p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    Encryption
+                </p>
+                <p class="mt-1 font-bold text-slate-950">
+                    AES-256-GCM
+                </p>
+            </div>
 
-            <a
-                href="/logs"
-                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
-            >
-                Security Logs
-            </a>
+            <div class="p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-sky-700">
+                    HMAC verified
+                </p>
+                <p class="mt-1 font-bold text-slate-950">
+                    {{ security_summary.verified_messages }}
+                </p>
+            </div>
 
-            <a
-                href="/attacks"
-                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
-            >
-                Attacks
-            </a>
+            <div class="p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-rose-700">
+                    Failed checks
+                </p>
+                <p class="mt-1 font-bold text-slate-950">
+                    {{ security_summary.failed_messages }}
+                </p>
+            </div>
 
-            <a
-                href="/logout"
-                class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700"
-            >
-                Logout
-            </a>
+            <div class="p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Private
+                </p>
+                <p class="mt-1 font-bold text-slate-950">
+                    {{ security_summary.private_messages }}
+                </p>
+            </div>
         </div>
     </header>
 
     {% if error %}
-        <div class="rounded-xl bg-red-100 px-4 py-3 text-red-800">
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800">
             {{ error }}
         </div>
     {% endif %}
 
     {% if success %}
-        <div class="rounded-xl bg-green-100 px-4 py-3 text-green-800">
+        <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
             {{ success }}
         </div>
     {% endif %}
 
-    <section class="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-            <p class="text-sm font-semibold text-emerald-800">
-                AES-256-GCM
-            </p>
-            <p class="mt-1 text-2xl font-bold text-emerald-950">
-                Active
-            </p>
-        </div>
+    <div class="grid min-h-[680px] grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow lg:grid-cols-[280px_1fr]">
+        <aside class="border-b border-slate-200 bg-slate-50 lg:border-b-0 lg:border-r">
+            <div class="border-b border-slate-200 p-5">
+                <h2 class="text-lg font-bold">Conversations</h2>
+                <p class="mt-1 text-sm text-slate-500">
+                    Room and private encrypted threads.
+                </p>
+            </div>
 
-        <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5">
-            <p class="text-sm font-semibold text-sky-800">
-                HMAC verified
-            </p>
-            <p class="mt-1 text-2xl font-bold text-sky-950">
-                {{ security_summary.verified_messages }}
-            </p>
-        </div>
+            <div class="space-y-3 p-4">
+                {% for room in user_rooms %}
+                    <a
+                        href="/room?room={{ room.slug }}"
+                        class="
+                            block rounded-xl border p-4
+                            {% if room.id == active_room.id %}
+                                border-slate-900 bg-white shadow-sm
+                            {% else %}
+                                border-slate-200 bg-white/70 hover:bg-white
+                            {% endif %}
+                        "
+                    >
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="truncate font-semibold text-slate-950">
+                                    # {{ room.slug }}
+                                </p>
+                                <p class="mt-1 text-xs text-slate-500">
+                                    {% if room.is_default %}
+                                        Default room
+                                    {% else %}
+                                        Room key protected
+                                    {% endif %}
+                                </p>
+                            </div>
 
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5">
-            <p class="text-sm font-semibold text-rose-800">
-                Integrity failures
-            </p>
-            <p class="mt-1 text-2xl font-bold text-rose-950">
-                {{ security_summary.failed_messages }}
-            </p>
-        </div>
+                            {% if room.id == active_room.id %}
+                                <span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                    open
+                                </span>
+                            {% endif %}
+                        </div>
+                    </a>
+                {% endfor %}
 
-        <div class="rounded-2xl border border-violet-200 bg-violet-50 p-5">
-            <p class="text-sm font-semibold text-violet-800">
-                Private messages
-            </p>
-            <p class="mt-1 text-2xl font-bold text-violet-950">
-                {{ security_summary.private_messages }}
-            </p>
-        </div>
-    </section>
+                <div class="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="truncate font-semibold text-violet-950">
+                                Private inbox
+                            </p>
+                            <p class="mt-1 text-xs text-violet-700">
+                                Pair-specific keys
+                            </p>
+                        </div>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <aside class="space-y-6">
-            <section class="rounded-2xl bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-bold">Room Members</h2>
+                        <span class="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                            {{ private_messages | length }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 p-4">
+                <h2 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
+                    Room actions
+                </h2>
+
+                <form
+                    method="post"
+                    action="/rooms"
+                    class="space-y-2"
+                    data-submit-guard
+                >
+                    <input
+                        name="name"
+                        required
+                        minlength="3"
+                        placeholder="New room name"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    >
+
+                    <button
+                        type="submit"
+                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:hover:bg-slate-900"
+                        data-submit-button
+                        data-loading-text="Creating..."
+                    >
+                        <span
+                            class="hidden h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                            data-submit-spinner
+                            aria-hidden="true"
+                        ></span>
+                        <span data-submit-label>Create room</span>
+                    </button>
+                </form>
+
+                {% if joinable_rooms %}
+                    <form
+                        method="post"
+                        action="/rooms/join"
+                        class="mt-3 space-y-2"
+                        data-submit-guard
+                    >
+                        <select
+                            name="room_slug"
+                            required
+                            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        >
+                            {% for room in joinable_rooms %}
+                                <option value="{{ room.slug }}">
+                                    # {{ room.slug }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <button
+                            type="submit"
+                            class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:hover:bg-white"
+                            data-submit-button
+                            data-loading-text="Joining..."
+                        >
+                            <span
+                                class="hidden h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-transparent"
+                                data-submit-spinner
+                                aria-hidden="true"
+                            ></span>
+                            <span data-submit-label>Join room</span>
+                        </button>
+                    </form>
+                {% endif %}
+
+                {% if not active_room.is_default %}
+                    <form
+                        method="post"
+                        action="/rooms/leave"
+                        class="mt-3"
+                        data-submit-guard
+                    >
+                        <input
+                            type="hidden"
+                            name="room_slug"
+                            value="{{ active_room.slug }}"
+                        >
+
+                        <button
+                            type="submit"
+                            class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:hover:bg-red-50"
+                            data-submit-button
+                            data-loading-text="Leaving..."
+                        >
+                            <span
+                                class="hidden h-4 w-4 animate-spin rounded-full border-2 border-red-700 border-t-transparent"
+                                data-submit-spinner
+                                aria-hidden="true"
+                            ></span>
+                            <span data-submit-label>Leave #{{ active_room.slug }}</span>
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+
+            <div class="border-t border-slate-200 p-5">
+                <h2 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
+                    Members
+                </h2>
 
                 {% if users %}
-                    <ul class="space-y-3">
+                    <ul class="space-y-2">
                         {% for user in users %}
-                            <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                                <span>{{ user.username }}</span>
+                            <li class="flex items-center gap-3 rounded-xl px-2 py-2">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold uppercase text-white">
+                                    {{ user.username[:1] }}
+                                </span>
+
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate font-medium text-slate-900">
+                                        {{ user.username }}
+                                    </p>
+                                    <p class="text-xs text-slate-500">
+                                        active
+                                    </p>
+                                </div>
 
                                 {% if user.username == username %}
-                                    <span class="rounded-full bg-slate-200 px-3 py-1 text-sm text-slate-700">
+                                    <span class="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
                                         you
                                     </span>
                                 {% endif %}
@@ -115,204 +296,168 @@
                         {% endfor %}
                     </ul>
                 {% else %}
-                    <p class="text-slate-500">
+                    <p class="text-sm text-slate-500">
                         No registered users found.
                     </p>
                 {% endif %}
-            </section>
-
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow">
-                <h2 class="text-xl font-bold">Message Routing</h2>
-
-                <div class="mt-4 space-y-3 text-sm text-slate-600">
-                    <p>
-                        General messages use the shared room key and are visible
-                        to every active user.
-                    </p>
-
-                    <p>
-                        Private messages start with
-                        <span class="font-semibold text-slate-900">@username</span>
-                        and use a pair-specific key.
-                    </p>
-                </div>
-            </section>
+            </div>
         </aside>
 
-        <section class="space-y-6 lg:col-span-2">
-            <div class="rounded-2xl bg-white p-6 shadow">
-                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 class="text-xl font-bold">General Messages</h2>
-                        <p class="mt-1 text-sm text-slate-500">
-                            Shared encrypted room traffic.
-                        </p>
-                    </div>
-
-                    <span class="w-fit rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                        Room key
-                    </span>
+        <section class="flex min-h-[680px] flex-col bg-slate-100">
+            <div class="flex flex-col gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-xl font-bold">Secure Room</h2>
+                    <p class="mt-1 text-sm text-slate-500">
+                        Viewing #{{ active_room.slug }} with your private messages in one timeline.
+                    </p>
                 </div>
 
-                {% if general_messages %}
-                    <div class="space-y-4">
-                        {% for message in general_messages %}
-                            <article
-                                class="
-                                    rounded-xl border p-4
-                                    {% if message.integrity_verified %}
-                                        border-slate-200 bg-white
-                                    {% else %}
-                                        border-red-200 bg-red-50
-                                    {% endif %}
-                                "
-                            >
-                                <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                    <div>
-                                        <span class="font-semibold">
+                <div class="flex flex-wrap gap-2">
+                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        Encrypted
+                    </span>
+                    <span class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
+                        HMAC protected
+                    </span>
+                </div>
+            </div>
+
+            <div class="flex-1 space-y-5 overflow-y-auto px-4 py-6 sm:px-6">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% set is_self = message.sender == username %}
+                        <article class="flex {% if is_self %}justify-end{% else %}justify-start{% endif %}">
+                            <div class="flex max-w-[86%] gap-2 sm:max-w-[68%] {% if is_self %}flex-row-reverse{% endif %}">
+                                <span
+                                    class="
+                                        mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold uppercase
+                                        {% if is_self %}
+                                            bg-slate-900 text-white
+                                        {% elif message.message_type == 'private' %}
+                                            bg-violet-600 text-white
+                                        {% else %}
+                                            bg-white text-slate-700 ring-1 ring-slate-200
+                                        {% endif %}
+                                    "
+                                >
+                                    {{ message.sender[:1] }}
+                                </span>
+
+                                <div class="space-y-1.5 {% if is_self %}items-end text-right{% endif %}">
+                                    <div class="flex flex-wrap items-center gap-1.5 {% if is_self %}justify-end{% endif %}">
+                                        <span class="text-xs font-semibold text-slate-700">
                                             {{ message.sender }}
                                         </span>
 
-                                        <span class="text-sm text-slate-500">
-                                            to everyone
-                                        </span>
-                                    </div>
-
-                                    <div class="flex flex-wrap gap-2">
-                                        <span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                                            General
-                                        </span>
+                                        {% if message.message_type == "private" %}
+                                            <span class="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+                                                Private to @{{ message.recipient }}
+                                            </span>
+                                        {% else %}
+                                            <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                                                General
+                                            </span>
+                                        {% endif %}
 
                                         {% if message.integrity_verified %}
-                                            <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                                            <span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">
                                                 Verified
                                             </span>
                                         {% else %}
-                                            <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-                                                Failed
+                                            <span class="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                                                Failed HMAC
                                             </span>
                                         {% endif %}
                                     </div>
+
+                                    <div
+                                        class="
+                                            rounded-xl px-3 py-2 text-left text-sm shadow-sm
+                                            {% if not message.integrity_verified %}
+                                                border border-red-200 bg-red-50 text-red-900
+                                            {% elif is_self %}
+                                                bg-slate-900 text-white
+                                            {% elif message.message_type == 'private' %}
+                                                border border-violet-200 bg-violet-50 text-slate-900
+                                            {% else %}
+                                                border border-slate-200 bg-white text-slate-900
+                                            {% endif %}
+                                        "
+                                    >
+                                        <p class="whitespace-pre-wrap break-words leading-normal">
+                                            {{ message.content }}
+                                        </p>
+                                    </div>
+
+                                    <p class="text-[11px] text-slate-400 {% if is_self %}text-right{% endif %}">
+                                        Message ID {{ message.id }}
+                                    </p>
                                 </div>
-
-                                <p class="whitespace-pre-wrap text-slate-800">
-                                    {{ message.content }}
-                                </p>
-
-                                <p class="mt-3 text-xs text-slate-400">
-                                    Message ID: {{ message.id }}
-                                </p>
-                            </article>
-                        {% endfor %}
-                    </div>
+                            </div>
+                        </article>
+                    {% endfor %}
                 {% else %}
-                    <p class="text-slate-500">
-                        No general messages available.
-                    </p>
+                    <div class="flex h-full min-h-80 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/70 p-8 text-center">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">
+                                No messages yet
+                            </h3>
+                            <p class="mt-2 max-w-md text-sm text-slate-500">
+                                Send a room message, or start with @username for a private encrypted message.
+                            </p>
+                        </div>
+                    </div>
                 {% endif %}
             </div>
 
-            <div class="rounded-2xl bg-white p-6 shadow">
-                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 class="text-xl font-bold">Private Messages</h2>
-                        <p class="mt-1 text-sm text-slate-500">
-                            Only messages where you are the sender or recipient.
-                        </p>
-                    </div>
-
-                    <span class="w-fit rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
-                        Pair key
-                    </span>
-                </div>
-
-                {% if private_messages %}
-                    <div class="space-y-4">
-                        {% for message in private_messages %}
-                            <article class="rounded-xl border border-violet-200 bg-violet-50 p-4">
-                                <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                    <div>
-                                        <span class="font-semibold">
-                                            {{ message.sender }}
-                                        </span>
-
-                                        <span class="text-sm text-slate-500">
-                                            to @{{ message.recipient }}
-                                        </span>
-                                    </div>
-
-                                    <div class="flex flex-wrap gap-2">
-                                        <span class="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
-                                            Private
-                                        </span>
-
-                                        {% if message.integrity_verified %}
-                                            <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                                                Verified
-                                            </span>
-                                        {% else %}
-                                            <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-                                                Failed
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                <p class="whitespace-pre-wrap text-slate-800">
-                                    {{ message.content }}
-                                </p>
-
-                                <p class="mt-3 text-xs text-slate-400">
-                                    Message ID: {{ message.id }}
-                                </p>
-                            </article>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="text-slate-500">
-                        No private messages visible to you.
-                    </p>
-                {% endif %}
-            </div>
-
-            <div class="rounded-2xl bg-white p-6 shadow">
-                <h2 class="mb-2 text-xl font-bold">Send Message</h2>
-
-                <p class="mb-4 text-sm text-slate-500">
-                    Send a general message normally. Start with
-                    <span class="font-semibold">@username</span>
-                    to send a private encrypted message.
-                </p>
-
-                <form
-                    method="post"
-                    action="/room/messages"
-                    class="space-y-4"
-                    data-submit-guard
+            <form
+                method="post"
+                action="/room/messages"
+                class="border-t border-slate-200 bg-white p-4"
+                data-submit-guard
+            >
+                <input
+                    type="hidden"
+                    name="room_slug"
+                    value="{{ active_room.slug }}"
                 >
+
+                <div class="flex flex-col gap-2 rounded-xl border border-slate-300 bg-slate-50 p-2.5 focus-within:border-slate-900 focus-within:ring-2 focus-within:ring-slate-200 sm:flex-row sm:items-end">
                     <textarea
                         name="content"
                         required
                         data-submit-on-enter
-                        placeholder="Hello everyone or @bob This is private"
-                        class="min-h-32 w-full resize-y rounded-lg border border-slate-300 px-4 py-3 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        placeholder="Message #{{ active_room.slug }} or @bob This is private"
+                        class="min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0"
                     ></textarea>
 
                     <button
                         type="submit"
-                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-6 py-3 font-semibold text-white hover:bg-slate-700 disabled:hover:bg-slate-900"
+                        class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:hover:bg-slate-900"
                         data-submit-button
                         data-loading-text="Sending..."
                     >
                         <span
-                            class="hidden h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                            class="hidden h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"
                             data-submit-spinner
                             aria-hidden="true"
                         ></span>
-                        <span data-submit-label>Encrypt and Send</span>
+                        <span data-submit-label>Send</span>
                     </button>
-                </form>
-            </div>
+                </div>
+
+                <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                    <span class="rounded-full bg-slate-100 px-3 py-1">
+                        Enter sends
+                    </span>
+                    <span class="rounded-full bg-slate-100 px-3 py-1">
+                        Shift + Enter adds a line
+                    </span>
+                    <span class="rounded-full bg-slate-100 px-3 py-1">
+                        @username sends privately
+                    </span>
+                </div>
+            </form>
         </section>
     </div>
 </section>

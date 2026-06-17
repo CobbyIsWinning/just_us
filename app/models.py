@@ -32,6 +32,55 @@ class User(Base):
         back_populates="recipient",
     )
 
+    room_memberships = relationship(
+        "RoomMembership",
+        back_populates="user",
+    )
+
+
+class Room(Base):
+    __tablename__ = "rooms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(80), nullable=False)
+    slug = Column(String(80), unique=True, nullable=False, index=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+
+    creator = relationship("User")
+
+    memberships = relationship(
+        "RoomMembership",
+        back_populates="room",
+    )
+
+    messages = relationship(
+        "Message",
+        back_populates="room",
+    )
+
+
+class RoomMembership(Base):
+    __tablename__ = "room_memberships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_active = Column(Boolean, default=True)
+    joined_at = Column(DateTime(timezone=True), default=utc_now)
+    left_at = Column(DateTime(timezone=True), nullable=True)
+
+    room = relationship(
+        "Room",
+        back_populates="memberships",
+    )
+
+    user = relationship(
+        "User",
+        back_populates="room_memberships",
+    )
+
 
 class Message(Base):
     __tablename__ = "messages"
@@ -40,8 +89,10 @@ class Message(Base):
 
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     recipient_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=True)
 
     message_type = Column(String(20), nullable=False)
+    key_version = Column(Integer, default=1, nullable=False)
 
     ciphertext = Column(Text, nullable=False)
     nonce = Column(Text, nullable=False)
@@ -63,6 +114,11 @@ class Message(Base):
         back_populates="received_messages",
     )
 
+    room = relationship(
+        "Room",
+        back_populates="messages",
+    )
+
 
 class ConversationKey(Base):
     __tablename__ = "conversation_keys"
@@ -70,8 +126,10 @@ class ConversationKey(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     key_scope = Column(String(20), nullable=False)
+    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=True)
     user_a_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     user_b_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    key_version = Column(Integer, default=1, nullable=False)
 
     key_value = Column(Text, nullable=False)
 

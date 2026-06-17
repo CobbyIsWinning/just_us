@@ -22,6 +22,17 @@ from app.message_service import (
     get_visible_messages,
 )
 from app.models import User
+from app.room_service import (
+    create_room,
+    ensure_default_room_for_user,
+    get_active_room_for_user,
+    get_joinable_rooms,
+    get_room_by_slug,
+    get_user_rooms,
+    join_room,
+    leave_room,
+    user_is_room_member,
+)
 from app.storage_service import get_stored_keys, get_stored_messages
 
 router = APIRouter()
@@ -316,6 +327,7 @@ def logout_user(request: Request):
 @router.get("/room", response_class=HTMLResponse)
 def room_page(
     request: Request,
+    room: str | None = None,
     error: str | None = None,
     success: str | None = None,
     db: Session = Depends(get_db),
@@ -338,9 +350,26 @@ def room_page(
         .all()
     )
 
+    active_room = get_active_room_for_user(
+        db=db,
+        user=current_user,
+        room_slug=room,
+    )
+
+    user_rooms = get_user_rooms(
+        db=db,
+        user=current_user,
+    )
+
+    joinable_rooms = get_joinable_rooms(
+        db=db,
+        user=current_user,
+    )
+
     messages = get_visible_messages(
         db=db,
         current_user=current_user,
+        room=active_room,
     )
     general_messages = [
         message
@@ -373,6 +402,9 @@ def room_page(
         context={
             "username": current_user.username,
             "users": users,
+            "active_room": active_room,
+            "user_rooms": user_rooms,
+            "joinable_rooms": joinable_rooms,
             "messages": messages,
             "general_messages": general_messages,
             "private_messages": private_messages,
@@ -387,6 +419,7 @@ def room_page(
 def send_message(
     request: Request,
     content: str = Form(...),
+    room_slug: str = Form(...),
     db: Session = Depends(get_db),
 ):
     current_user = get_current_user(
@@ -400,6 +433,31 @@ def send_message(
             status_code=302,
         )
 
+    active_room = get_room_by_slug(
+        db=db,
+        slug=room_slug,
+    )
+
+    if not active_room or not user_is_room_member(
+        db=db,
+        room=active_room,
+        user=current_user,
+    ):
+        log_security_event(
+            "ROOM_ACCESS_DENIED",
+            username=current_user.username,
+            user_id=current_user.id,
+            room_slug=room_slug,
+            action="message_blocked",
+        )
+
+        return RedirectResponse(
+            url="/room?error=You%20must%20join%20that%20room%20before%20sending.",
+            status_code=303,
+        )
+
+    room_query = quote(active_room.slug)
+
     try:
         (
             message_type,
@@ -408,7 +466,7 @@ def send_message(
         ) = parse_message_content(content)
     except ValueError as error:
         return RedirectResponse(
-            url=f"/room?error={quote(str(error))}",
+            url=f"/room?room={room_query}&error={quote(str(error))}",
             status_code=303,
         )
 
@@ -417,10 +475,14 @@ def send_message(
             create_general_message(
                 db=db,
                 sender=current_user,
+                room=active_room,
                 plaintext=message_body,
             )
 
-            success_message = "General message encrypted and sent."
+            success_message = (
+                f"General message encrypted and sent to "
+                f"#{active_room.slug}."
+            )
         else:
             recipient = (
                 db.query(User)
@@ -434,7 +496,7 @@ def send_message(
             if not recipient:
                 return RedirectResponse(
                     url=(
-                        "/room?error="
+                        f"/room?room={room_query}&error="
                         + quote(
                             f"User @{recipient_username} does not exist."
                         )
@@ -456,7 +518,7 @@ def send_message(
 
     except ValueError as error:
         return RedirectResponse(
-            url=f"/room?error={quote(str(error))}",
+            url=f"/room?room={room_query}&error={quote(str(error))}",
             status_code=303,
         )
 
@@ -467,12 +529,150 @@ def send_message(
         )
 
         return RedirectResponse(
-            url="/room?error=Message%20could%20not%20be%20sent.",
+            url=(
+                f"/room?room={room_query}"
+                "&error=Message%20could%20not%20be%20sent."
+            ),
             status_code=303,
         )
 
     return RedirectResponse(
-        url="/room?success=" + quote(success_message),
+        url=f"/room?room={room_query}&success=" + quote(success_message),
+        status_code=303,
+    )
+
+
+@router.post("/rooms", response_class=HTMLResponse)
+def create_room_route(
+    request: Request,
+    name: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(
+        request=request,
+        db=db,
+    )
+
+    if not current_user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    try:
+        room = create_room(
+            db=db,
+            name=name,
+            creator=current_user,
+        )
+    except ValueError as error:
+        return RedirectResponse(
+            url=f"/room?error={quote(str(error))}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=(
+            f"/room?room={quote(room.slug)}&success="
+            + quote(f"Room #{room.slug} created.")
+        ),
+        status_code=303,
+    )
+
+
+@router.post("/rooms/join", response_class=HTMLResponse)
+def join_room_route(
+    request: Request,
+    room_slug: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(
+        request=request,
+        db=db,
+    )
+
+    if not current_user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    room = get_room_by_slug(
+        db=db,
+        slug=room_slug,
+    )
+
+    if not room:
+        return RedirectResponse(
+            url="/room?error=Room%20does%20not%20exist.",
+            status_code=303,
+        )
+
+    join_room(
+        db=db,
+        room=room,
+        user=current_user,
+    )
+
+    return RedirectResponse(
+        url=(
+            f"/room?room={quote(room.slug)}&success="
+            + quote(f"Joined #{room.slug}.")
+        ),
+        status_code=303,
+    )
+
+
+@router.post("/rooms/leave", response_class=HTMLResponse)
+def leave_room_route(
+    request: Request,
+    room_slug: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    current_user = get_current_user(
+        request=request,
+        db=db,
+    )
+
+    if not current_user:
+        return RedirectResponse(
+            url="/login",
+            status_code=302,
+        )
+
+    room = get_room_by_slug(
+        db=db,
+        slug=room_slug,
+    )
+
+    if not room:
+        return RedirectResponse(
+            url="/room?error=Room%20does%20not%20exist.",
+            status_code=303,
+        )
+
+    try:
+        leave_room(
+            db=db,
+            room=room,
+            user=current_user,
+        )
+    except ValueError as error:
+        return RedirectResponse(
+            url=f"/room?room={quote(room.slug)}&error={quote(str(error))}",
+            status_code=303,
+        )
+
+    fallback_room = ensure_default_room_for_user(
+        db=db,
+        user=current_user,
+    )
+
+    return RedirectResponse(
+        url=(
+            f"/room?room={quote(fallback_room.slug)}&success="
+            + quote(f"Left #{room.slug}. Future messages use a rotated key.")
+        ),
         status_code=303,
     )
 
