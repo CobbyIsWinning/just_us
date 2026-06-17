@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <main class="mx-auto w-full max-w-6xl px-3 py-4 sm:px-5 sm:py-8 lg:py-10">
+    <main class="{% block main_class %}mx-auto w-full max-w-6xl px-3 py-4 sm:px-5 sm:py-8 lg:py-10{% endblock %}">
         {% block content %}{% endblock %}
     </main>
     <script>
@@ -66,6 +66,23 @@
                     } else {
                         form.submit();
                     }
+                });
+            });
+
+            document.querySelectorAll("[data-password-toggle]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const wrapper = button.closest("div");
+                    const input = wrapper
+                        ? wrapper.querySelector("[data-password-input]")
+                        : null;
+
+                    if (!input) {
+                        return;
+                    }
+
+                    const isHidden = input.type === "password";
+                    input.type = isHidden ? "text" : "password";
+                    button.textContent = isHidden ? "Hide" : "Show";
                 });
             });
         });

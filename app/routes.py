@@ -142,6 +142,7 @@ def register_user(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    confirm_password: str = Form(...),
     db: Session = Depends(get_db),
 ):
     username = username.strip().lower()
@@ -177,6 +178,17 @@ def register_user(
             name="register.html",
             context={
                 "error": "Password must contain at least 8 characters.",
+                "success": None,
+            },
+            status_code=400,
+        )
+
+    if password != confirm_password:
+        return templates.TemplateResponse(
+            request=request,
+            name="register.html",
+            context={
+                "error": "Passwords do not match.",
                 "success": None,
             },
             status_code=400,
