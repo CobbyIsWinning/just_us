@@ -156,7 +156,7 @@
                         required
                         minlength="3"
                         placeholder="New room name"
-                        class="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        class="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-[16px] shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     >
 
                     <button
@@ -184,7 +184,7 @@
                         <select
                             name="room_slug"
                             required
-                            class="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                            class="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-[16px] shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
                         >
                             {% for room in joinable_rooms %}
                                 <option value="{{ room.slug }}">
