@@ -11,9 +11,22 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is missing in .env")
 
+engine_options = {
+    "pool_pre_ping": True,
+}
+
+if DATABASE_URL.startswith("sqlite"):
+    engine_options["connect_args"] = {
+        "check_same_thread": False,
+    }
+else:
+    engine_options["connect_args"] = {
+        "connect_timeout": 10,
+    }
+
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,
+    **engine_options,
 )
 
 SessionLocal = sessionmaker(
