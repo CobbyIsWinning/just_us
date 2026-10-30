@@ -58,7 +58,7 @@ def backfill_default_room_records(
     db: Session,
     room: Room,
 ) -> None:
-    updated_messages = (
+    (
         db.query(Message)
         .filter(
             Message.message_type == "general",
@@ -70,7 +70,7 @@ def backfill_default_room_records(
         )
     )
 
-    updated_keys = (
+    (
         db.query(ConversationKey)
         .filter(
             ConversationKey.key_scope == ROOM_KEY_SCOPE,
@@ -84,8 +84,9 @@ def backfill_default_room_records(
         )
     )
 
-    if updated_messages or updated_keys:
-        db.commit()
+    # Even an UPDATE matching no rows opens a write transaction in SQLite.
+    # Release it before the page writes audit events through another session.
+    db.commit()
 
 
 def get_membership(

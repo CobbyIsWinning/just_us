@@ -142,15 +142,29 @@ def register_user(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    confirm_password: str = Form(...),
     db: Session = Depends(get_db),
 ):
     username = username.strip().lower()
+
+    if password != confirm_password:
+        return templates.TemplateResponse(
+            request=request,
+            name="register.html",
+            context={
+                "form_username": username,
+                "error": "Your passwords don’t match.",
+                "success": None,
+            },
+            status_code=400,
+        )
 
     if len(username) < 3:
         return templates.TemplateResponse(
             request=request,
             name="register.html",
             context={
+                "form_username": username,
                 "error": "Username must contain at least 3 characters.",
                 "success": None,
             },
@@ -162,6 +176,7 @@ def register_user(
             request=request,
             name="register.html",
             context={
+                "form_username": username,
                 "error": (
                     "Username may contain only letters, "
                     "numbers, and underscores."
@@ -176,6 +191,7 @@ def register_user(
             request=request,
             name="register.html",
             context={
+                "form_username": username,
                 "error": "Password must contain at least 8 characters.",
                 "success": None,
             },
@@ -205,6 +221,7 @@ def register_user(
             request=request,
             name="register.html",
             context={
+                "form_username": username,
                 "error": "Username already exists.",
                 "success": None,
             },
@@ -226,6 +243,7 @@ def register_user(
         request=request,
         name="register.html",
         context={
+            "form_username": username,
             "error": None,
             "success": "Registration successful. You can now log in.",
         },
@@ -275,6 +293,7 @@ def login_user(
             request=request,
             name="login.html",
             context={
+                "form_username": username,
                 "error": error,
             },
             status_code=401,
@@ -328,6 +347,7 @@ def logout_user(request: Request):
 def room_page(
     request: Request,
     room: str | None = None,
+    view: str | None = None,
     error: str | None = None,
     success: str | None = None,
     db: Session = Depends(get_db),
@@ -401,6 +421,7 @@ def room_page(
         name="room.html",
         context={
             "username": current_user.username,
+            "inbox": view == "private",
             "users": users,
             "active_room": active_room,
             "user_rooms": user_rooms,
@@ -420,6 +441,8 @@ def send_message(
     request: Request,
     content: str = Form(...),
     room_slug: str = Form(...),
+    recipient_username: str | None = Form(None),
+    view: str = Form("room"),
     db: Session = Depends(get_db),
 ):
     current_user = get_current_user(
@@ -457,13 +480,23 @@ def send_message(
         )
 
     room_query = quote(active_room.slug)
+    if view == "private":
+        room_query += "&view=private"
+        if recipient_username:
+            room_query += "&to=" + quote(recipient_username)
 
     try:
         (
             message_type,
             recipient_username,
             message_body,
-        ) = parse_message_content(content)
+        ) = (
+            ("private", recipient_username.strip().lower(), content.strip())
+            if recipient_username and recipient_username.strip()
+            else parse_message_content(content)
+        )
+        if view == "private" and not recipient_username:
+            raise ValueError("Choose a recipient for your private message.")
     except ValueError as error:
         return RedirectResponse(
             url=f"/room?room={room_query}&error={quote(str(error))}",
@@ -535,6 +568,9 @@ def send_message(
             ),
             status_code=303,
         )
+
+    if message_type == "private" and view != "private":
+        room_query += "&view=private&to=" + quote(recipient_username)
 
     return RedirectResponse(
         url=f"/room?room={room_query}&success=" + quote(success_message),

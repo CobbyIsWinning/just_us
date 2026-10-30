@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
@@ -28,6 +28,18 @@ engine = create_engine(
     DATABASE_URL,
     **engine_options,
 )
+
+if DATABASE_URL.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def configure_sqlite_connection(connection, _connection_record):
+        # Audit events use a separate session. WAL lets those writes proceed
+        # while a page is reading messages instead of blocking the UI.
+        cursor = connection.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+        finally:
+            cursor.close()
+
 
 SessionLocal = sessionmaker(
     autocommit=False,

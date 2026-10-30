@@ -1,6 +1,6 @@
 # Just Us
 
-Secure room messaging MVP built with FastAPI, Jinja templates, Tailwind, and SQLAlchemy.
+Secure room messaging MVP built with FastAPI, Jinja templates, shared CSS components, and SQLAlchemy.
 
 ## Local Run
 
@@ -42,10 +42,17 @@ installed by different Python versions can cause import errors.
 
 1. Register a user with a username and a password of at least 8 characters.
 2. Log in with that user.
-3. Send a normal room message.
+3. Send a message in the room conversation.
 4. Register another user in a different browser or after logging out.
-5. Send a private message with `@username message text`.
-6. Visit `/logs`, `/attacks`, or `/dev/storage` for the security demo pages.
+5. Open **Private inbox**, choose a recipient, and send a private message.
+   The `@username message text` shortcut also works from a room.
+6. Use **Activity**, **Security lab**, or **Storage** in the main navigation
+   for the security demo pages.
+7. Create or join rooms from **Create or join a room** in the conversations sidebar.
+
+The interface supports mobile and desktop layouts, keyboard message submission
+(Enter to send, Shift + Enter for a new line), event filtering, and expandable
+encrypted storage records. Messages update when you send or use the refresh button.
 
 ## Vercel deployment
 

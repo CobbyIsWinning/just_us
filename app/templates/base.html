@@ -1,91 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Just Us</title>
-    <link rel="icon" type="image/png" href="/logo.png">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Just Us
+{% endblock %}</title>
+<link rel="icon" href="/logo.png">
+<link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+<script src="{{ url_for('static', path='/app.js') }}" defer>
+</script>
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <main class="{% block main_class %}mx-auto w-full max-w-6xl px-3 py-4 sm:px-5 sm:py-8 lg:py-10{% endblock %}">
-        {% block content %}{% endblock %}
-    </main>
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            document.querySelectorAll("form[data-submit-guard]").forEach((form) => {
-                form.addEventListener("submit", (event) => {
-                    if (!form.checkValidity()) {
-                        return;
-                    }
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+{% if username %}
+<header class="app-header">
+<a class="brand" href="/room">
+<span class="brand-mark" aria-hidden="true">ju<span>·</span>
+</span>
+<span>just us<span class="brand-caption">A little more private.</span>
+</span>
+</a>
+<nav aria-label="Main navigation">{% for href, label in [('/room','Messages'),('/logs','Activity'),('/attacks','Security lab'),('/dev/storage','Storage')] %}<a href="{{ href }}" {% if request.url.path == href or (href == '/attacks' and request.url.path.startswith('/attacks/')) %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
+<div class="account">
+<span class="avatar">{{ username[:1] }}</span>
+<span class="account-name">{{ username }}</span>
+<a class="text-link" href="/logout">Sign out</a>
+</div>
+</header>
+{% endif %}
+<main id="main" class="{% block main_class %}page
+{% endblock %}">{% block content %}
 
-                    if (form.dataset.submitting === "true") {
-                        event.preventDefault();
-                        return;
-                    }
-
-                    form.dataset.submitting = "true";
-
-                    const button = form.querySelector("[data-submit-button]");
-                    if (!button) {
-                        return;
-                    }
-
-                    const label = button.querySelector("[data-submit-label]");
-                    const spinner = button.querySelector("[data-submit-spinner]");
-
-                    button.disabled = true;
-                    button.classList.add("cursor-not-allowed", "opacity-75");
-
-                    if (label && button.dataset.loadingText) {
-                        label.textContent = button.dataset.loadingText;
-                    }
-
-                    if (spinner) {
-                        spinner.classList.remove("hidden");
-                    }
-                });
-            });
-
-            document.querySelectorAll("textarea[data-submit-on-enter]").forEach((textarea) => {
-                textarea.addEventListener("keydown", (event) => {
-                    if (event.key !== "Enter" || event.shiftKey) {
-                        return;
-                    }
-
-                    event.preventDefault();
-
-                    const form = textarea.form;
-                    if (!form || form.dataset.submitting === "true") {
-                        return;
-                    }
-
-                    if (form.requestSubmit) {
-                        form.requestSubmit();
-                    } else {
-                        form.submit();
-                    }
-                });
-            });
-
-            document.querySelectorAll("[data-password-toggle]").forEach((button) => {
-                button.addEventListener("click", () => {
-                    const wrapper = button.closest("div");
-                    const input = wrapper
-                        ? wrapper.querySelector("[data-password-input]")
-                        : null;
-
-                    if (!input) {
-                        return;
-                    }
-
-                    const isHidden = input.type === "password";
-                    input.type = isHidden ? "text" : "password";
-                    button.textContent = isHidden ? "Hide" : "Show";
-                });
-            });
-        });
-    </script>
+{% endblock %}</main>
 </body>
 </html>
