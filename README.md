@@ -56,8 +56,13 @@ encrypted storage records. Messages update when you send or use the refresh butt
 
 ## Vercel deployment
 
-The app is configured for Vercel with `vercel.json`, which routes all requests to
-the FastAPI ASGI app in `main.py`.
+The app uses Vercel's native FastAPI support, configured in `vercel.json`.
+Vercel detects `app` in `main.py` and preserves incoming request paths.
+Do not add a catch-all rewrite to `/main.py`: that changes the path FastAPI
+receives and causes `{"detail":"Not Found"}` responses.
+
+After deploying, open `/health` to check the application, then `/` to reach
+the login page.
 
 Set these environment variables in Vercel:
 
